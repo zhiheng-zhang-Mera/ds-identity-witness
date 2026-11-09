@@ -10,10 +10,14 @@ permissions:
   id-token: write
 
 jobs:
-  w7:
+  setup:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
+      - id: set
+        run: echo 'matrix={"shard":[1,2]}' >> "$GITHUB_OUTPUT"
       - name: Attest
         env:
           WITNESS_WORKFLOW_PATH: .github/workflows/w7.yml
@@ -53,3 +57,11 @@ jobs:
           name: identity-attestation
           path: attestation.json
           if-no-files-found: error
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    steps:
+      - run: echo "shard=${{ matrix.shard }}"
+
