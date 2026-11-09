@@ -1,0 +1,56 @@
+name: witness-wf6
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/w6.yml"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  w6:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Attest
+        env:
+          WITNESS_WORKFLOW_PATH: .github/workflows/w6.yml
+          WITNESS_FAMILY: wf6
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, os, urllib.request
+          from datetime import datetime, timezone
+
+          path = os.environ["WITNESS_WORKFLOW_PATH"]
+          blob = open(path, "rb").read()
+          sha = hashlib.sha256(blob).hexdigest()
+          url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
+          req = urllib.request.Request(url + "&audience=ds-hns-identity",
+                                       headers={"Authorization": "bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]})
+          with urllib.request.urlopen(req) as response:
+              token = json.loads(response.read().decode())["value"]
+          att = {
+              "schema": "ds-hns-identity-attestation/1",
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "head_sha": os.environ["GITHUB_SHA"],
+              "ref": os.environ["GITHUB_REF"],
+              "workflow_ref": os.environ["GITHUB_WORKFLOW_REF"],
+              "workflow_path": path,
+              "workflow_sha256": sha,
+              "family": os.environ["WITNESS_FAMILY"],
+              "job": os.environ["GITHUB_JOB"],
+              "event_name": os.environ["GITHUB_EVENT_NAME"],
+              "oidc_token": token,
+              "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+          }
+          open("attestation.json", "w", encoding="utf-8").write(json.dumps(att, indent=2, sort_keys=True) + "\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: identity-attestation
+          path: attestation.json
+          if-no-files-found: error
