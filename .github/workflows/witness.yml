@@ -1,0 +1,64 @@
+name: witness
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  witness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build identity attestation
+        env:
+          WITNESS_OIDC_AUDIENCE: ds-hns-identity
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, os, urllib.request
+
+          workflow_path = ".github/workflows/witness.yml"
+          workflow_bytes = open(workflow_path, "rb").read()
+          workflow_sha256 = hashlib.sha256(workflow_bytes).hexdigest()
+
+          request_url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
+          request_token = os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]
+          req = urllib.request.Request(
+              request_url + "&audience=ds-hns-identity",
+              headers={"Authorization": "bearer " + request_token},
+          )
+          with urllib.request.urlopen(req) as response:
+              token = json.loads(response.read().decode())["value"]
+
+          attestation = {
+              "schema": "ds-hns-identity-attestation/1",
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "head_sha": os.environ["GITHUB_SHA"],
+              "ref": os.environ["GITHUB_REF"],
+              "workflow_ref": os.environ["GITHUB_WORKFLOW_REF"],
+              "workflow_path": workflow_path,
+              "workflow_sha256": workflow_sha256,
+              "job": os.environ["GITHUB_JOB"],
+              "event_name": os.environ["GITHUB_EVENT_NAME"],
+              "oidc_token": token,
+              "captured_at_utc": __import__("datetime").datetime.now(
+                  __import__("datetime").timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+          }
+          open("attestation.json", "w", encoding="utf-8").write(
+              json.dumps(attestation, indent=2, sort_keys=True) + "\n")
+          header_b64 = token.split(".")[0]
+          header = json.loads(base64.urlsafe_b64decode(header_b64 + "=" * (-len(header_b64) % 4)))
+          print("token alg:", header.get("alg"), "kid:", header.get("kid"))
+          PY
+      - name: Upload attestation
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-attestation
+          path: attestation.json
+          if-no-files-found: error
