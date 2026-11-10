@@ -20,12 +20,9 @@ jobs:
     name: Unit ${{ matrix.slot }}
     steps:
     - run: echo unit
-  conditional-guard:
-    runs-on: ubuntu-latest
-    name: Conditional guard
-    if: github.event_name == 'push'
-    steps:
-    - run: echo conditional
+  reused:
+    uses: ./.github/workflows/_ds5-reusable-stub.yml
+    name: Reused obligations
   identity-witness:
     runs-on: ubuntu-latest
     steps:
