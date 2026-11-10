@@ -1,0 +1,37 @@
+name: ds5-r55-controlled-matrix
+'on':
+  workflow_dispatch: {}
+  push:
+    branches:
+    - main
+    paths:
+    - .github/workflows/ds5-r55-controlled-matrix.yml
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        slot:
+        - a
+        - b
+    name: Unit ${{ matrix.slot }}
+    steps:
+    - run: echo unit
+  identity-witness:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Attest
+      env:
+        WITNESS_WORKFLOW_PATH: .github/workflows/ds5-r55-controlled-matrix.yml
+        WITNESS_FAMILY: controlled-matrix
+      run: "python3 - <<'PY'\nimport hashlib, json, os, urllib.request\nfrom datetime import datetime, timezone\npath = os.environ[\"WITNESS_WORKFLOW_PATH\"]\nblob = open(path, \"rb\").read()\nsha = hashlib.sha256(blob).hexdigest()\nurl = os.environ[\"ACTIONS_ID_TOKEN_REQUEST_URL\"]\nreq = urllib.request.Request(url + \"&audience=ds-hns-identity\",\n                             headers={\"Authorization\": \"bearer \" + os.environ[\"ACTIONS_ID_TOKEN_REQUEST_TOKEN\"]})\nwith urllib.request.urlopen(req) as response:\n    token = json.loads(response.read().decode())[\"value\"]\natt = {\n    \"schema\": \"ds-hns-identity-attestation/1\",\n    \"repository\": os.environ[\"GITHUB_REPOSITORY\"],\n    \"run_id\": int(os.environ[\"GITHUB_RUN_ID\"]),\n    \"run_attempt\": int(os.environ[\"GITHUB_RUN_ATTEMPT\"]),\n    \"head_sha\": os.environ[\"GITHUB_SHA\"],\n    \"ref\": os.environ[\"GITHUB_REF\"],\n    \"workflow_ref\": os.environ[\"GITHUB_WORKFLOW_REF\"],\n    \"workflow_path\": path,\n    \"workflow_sha256\"\
+        : sha,\n    \"family\": os.environ[\"WITNESS_FAMILY\"],\n    \"job\": os.environ[\"GITHUB_JOB\"],\n    \"event_name\": os.environ[\"GITHUB_EVENT_NAME\"],\n    \"oidc_token\": token,\n    \"captured_at_utc\": datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H:%M:%SZ\"),\n}\nopen(\"attestation.json\", \"w\", encoding=\"utf-8\").write(json.dumps(att, indent=2, sort_keys=True) + \"\\n\")\nPY"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: identity-attestation
+        path: attestation.json
+        if-no-files-found: error
