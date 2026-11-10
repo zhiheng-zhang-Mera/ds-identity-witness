@@ -12,7 +12,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Renamed controlled-needs display
+    name: Build display
     steps:
     - run: echo build
   test:
@@ -21,6 +21,12 @@ jobs:
     needs: build
     steps:
     - run: echo test
+  conditional-guard:
+    runs-on: ubuntu-latest
+    name: Conditional guard
+    if: github.event_name == 'push'
+    steps:
+    - run: echo conditional
   identity-witness:
     runs-on: ubuntu-latest
     steps:
