@@ -17,25 +17,9 @@ jobs:
         slot:
         - a
         - b
-    name: Unit ${{ matrix.slot }}
+    name: Renamed controlled-matrix display
     steps:
     - run: echo unit
-  setup:
-    runs-on: ubuntu-latest
-    name: Setup matrix
-    outputs:
-      matrix: ${{ steps.m.outputs.matrix }}
-    steps:
-    - id: m
-      run: echo 'matrix={"include":[{"slot":"one"},{"slot":"two"}]}' >> $GITHUB_OUTPUT
-  build:
-    runs-on: ubuntu-latest
-    needs: setup
-    name: Build ${{ matrix.slot }}
-    strategy:
-      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
-    steps:
-    - run: echo build
   identity-witness:
     runs-on: ubuntu-latest
     steps:
