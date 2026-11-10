@@ -1,0 +1,9 @@
+name: ds5-r55-reusable-stub
+on: workflow_call
+permissions:
+  contents: read
+jobs:
+  stub:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo reusable-stub
