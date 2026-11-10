@@ -11,7 +11,7 @@ permissions:
   id-token: write
 jobs:
   tests:
-    name: Renamed flask-real display
+    name: ${{ matrix.name || matrix.python }}
     runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
@@ -46,6 +46,12 @@ jobs:
     steps:
     - name: adapted no-op (original steps not executed in witness copy)
       run: 'echo ''adapted original job: no project commands executed'''
+  conditional-guard:
+    runs-on: ubuntu-latest
+    name: Conditional guard
+    if: github.event_name == 'push'
+    steps:
+    - run: echo conditional
   identity-witness:
     runs-on: ubuntu-latest
     steps:
