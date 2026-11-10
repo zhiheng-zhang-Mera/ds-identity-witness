@@ -12,9 +12,20 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build display
+    needs: setup
+    name: Build ${{ matrix.slot }}
+    strategy:
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     steps:
     - run: echo build
+  setup:
+    runs-on: ubuntu-latest
+    name: Setup matrix
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+    - id: m
+      run: echo 'matrix={"include":[{"slot":"one"},{"slot":"two"}]}' >> $GITHUB_OUTPUT
   identity-witness:
     runs-on: ubuntu-latest
     steps:
