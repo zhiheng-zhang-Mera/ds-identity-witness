@@ -17,9 +17,15 @@ jobs:
         slot:
         - a
         - b
-    name: Renamed controlled-matrix display
+    name: Unit ${{ matrix.slot }}
     steps:
     - run: echo unit
+  conditional-guard:
+    runs-on: ubuntu-latest
+    name: Conditional guard
+    if: github.event_name == 'push'
+    steps:
+    - run: echo conditional
   identity-witness:
     runs-on: ubuntu-latest
     steps:
