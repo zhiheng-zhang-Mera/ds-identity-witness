@@ -12,9 +12,15 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Renamed controlled-single display
+    name: Build display
     steps:
     - run: echo build
+  conditional-guard:
+    runs-on: ubuntu-latest
+    name: Conditional guard
+    if: github.event_name == 'push'
+    steps:
+    - run: echo conditional
   identity-witness:
     runs-on: ubuntu-latest
     steps:
