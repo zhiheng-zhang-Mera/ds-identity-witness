@@ -1,0 +1,75 @@
+name: R71 natural Drizzle contrast
+'on':
+  workflow_dispatch:
+    inputs:
+      case_id:
+        required: true
+        type: choice
+        options:
+          - generator
+          - unique-generator
+permissions:
+  contents: read
+jobs:
+  identity:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Record receipt
+        env:
+          CASE_ID: ${{ inputs.case_id }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          keys = ('CASE_ID', 'GITHUB_REPOSITORY', 'GITHUB_SHA', 'GITHUB_WORKFLOW_REF',
+                  'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')
+          receipt = {key: os.environ[key] for key in keys}
+          receipt['subject_commit'] = 'eab8bedbb65d5429c54e612ddbd88aa23091d398'
+          Path('r71-natural-receipt.json').write_text(json.dumps(receipt, sort_keys=True) + '\n')
+          PY
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: r71-natural-receipt.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: r71-natural-receipt
+          path: r71-natural-receipt.json
+          if-no-files-found: error
+  generator-test:
+    name: generator-test
+    needs: identity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.0'
+      - name: Get frozen upstream
+        run: |
+          git init drizzle
+          git -C drizzle fetch --depth=1 https://github.com/drizzle-team/drizzle-orm.git eab8bedbb65d5429c54e612ddbd88aa23091d398
+          git -C drizzle checkout --detach FETCH_HEAD
+          test "$(git -C drizzle rev-parse HEAD)" = eab8bedbb65d5429c54e612ddbd88aa23091d398
+      - name: Install frozen dependencies
+        working-directory: drizzle
+        run: |
+          npm install --global pnpm@10.6.3
+          pnpm install --frozen-lockfile
+      - name: Build upstream
+        working-directory: drizzle
+        run: pnpm run build
+      - name: Run registered upstream fixture
+        working-directory: drizzle
+        env:
+          CASE_ID: ${{ inputs.case_id }}
+        run: |
+          case "$CASE_ID" in
+            generator) fixture='^valuesFromArray generator test$' ;;
+            unique-generator) fixture='^valuesFromArray unique generator test$' ;;
+            *) exit 2 ;;
+          esac
+          pnpm --dir drizzle-seed exec vitest run tests/pg/generatorsTest/generators.test.ts -t "$fixture"
