@@ -1,0 +1,50 @@
+name: R71 confirmation reusable
+'on':
+  workflow_dispatch:
+    inputs:
+      request_id:
+        required: true
+        type: string
+      outcome:
+        required: true
+        type: choice
+        options:
+        - allow
+        - block
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+    - name: Record launch identity
+      shell: python
+      env:
+        REQUEST_ID: ${{ inputs.request_id }}
+        FAMILY: reusable
+        OUTCOME: ${{ inputs.outcome }}
+      run: "import json, os\nfrom pathlib import Path\nnames = ('REQUEST_ID', 'FAMILY',\
+        \ 'OUTCOME', 'GITHUB_REPOSITORY', 'GITHUB_SHA',\n         'GITHUB_WORKFLOW_REF',\
+        \ 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')\nPath('r71-receipt.json').write_text(json.dumps({name:\
+        \ os.environ[name] for name in names},\n                                 \
+        \                 sort_keys=True) + '\\n')\n"
+    - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: r71-receipt.json
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: r71-receipt
+        path: r71-receipt.json
+        if-no-files-found: error
+    - name: Check fixture outcome
+      env:
+        OUTCOME: allow
+      run: test "$OUTCOME" = allow
+  delegate:
+    uses: ./.github/workflows/r71-confirmation-child.yml
+    with:
+      outcome: ${{ inputs.outcome }}

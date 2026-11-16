@@ -1,0 +1,16 @@
+name: R71 confirmation child
+'on':
+  workflow_call:
+    inputs:
+      outcome:
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  child:
+    runs-on: ubuntu-24.04
+    env:
+      OUTCOME: ${{ inputs.outcome }}
+    steps:
+    - run: test "$OUTCOME" = allow
